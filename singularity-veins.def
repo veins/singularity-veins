@@ -1,0 +1,189 @@
+
+#
+# singularity-veins -- Singularity container for quickly building and running Veins simulations anywhere
+# Copyright (C) 2020 Christoph Sommer <sommer@cms-labs.org>
+#
+# Documentation for these modules is at http://veins.car2x.org/
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+
+Bootstrap: debootstrap
+OSVersion: buster
+MirrorURL:  http://httpredir.debian.org/debian
+
+# Alternative: bootstrap from docker
+#Bootstrap: docker
+#From: debian:buster
+
+%labels
+    Author sommer@cms-labs.org
+    Version v0.0.3
+
+%help
+    This container includes:
+    - Debian Buster;
+    - Veins 5.0 (for sumo-launchd.py);
+    - OMNeT++ 5.6; and
+    - SUMO 1.4.0.
+
+    It was tested with Singularity 3.5.2.
+
+    Its runscript will simply run the given command;
+    - optionally in parallel to sumo-launchd.py (runscript --launchd option);
+    - optionally after changing to a given directory (runscript --chdir option).
+
+    You might want to turn on "contain all" (singularity -C option) to isolate programs run in this container from the host system (and vice versa).
+    You might want to mount a home directory (singularity -H option) to make simulations to be built/run available in the container.
+
+    For example, to compile and run the Veins 5.0 tutorial simulation in work/src/veins/examples/veins, you would run the following:
+    mkdir -p work/src
+    cd work/src
+    git clone --branch veins-5.0 https://github.com/sommer/veins veins
+    sudo singularity run -H work:/work -C singularity-veins.sif --chdir src/veins -- ./configure
+    sudo singularity run -H work:/work -C singularity-veins.sif --chdir src/veins -- make
+    sudo singularity run -H work:/work -C singularity-veins.sif --chdir src/veins/examples/veins --launchd -- ./run -u Cmdenv
+    head work/src/veins/examples/veins/results/General-\#0.sca
+
+%setup
+    # create stub hosts file contents (necessary for resolving "localhost" if network isolation is turned on)
+    test -s "${SINGULARITY_ROOTFS}/etc/hosts" || echo '127.0.0.1\tlocalhost' >> "${SINGULARITY_ROOTFS}/etc/hosts"
+
+%post
+    set -e
+
+    apt-get -y update
+
+    # script for singularity-veins
+    mkdir -p /opt/singularity-veins
+    echo '#!/bin/bash' > /opt/singularity-veins/run-with-launchd.sh
+    echo 'set -e' >> /opt/singularity-veins/run-with-launchd.sh
+    echo '/opt/veins/sumo-launchd.py -d' >> /opt/singularity-veins/run-with-launchd.sh
+    echo 'trap "kill $(cat /tmp/sumo-launchd.pid)" EXIT' >> /opt/singularity-veins/run-with-launchd.sh
+    echo '"$@"' >> /opt/singularity-veins/run-with-launchd.sh
+    chmod a+x /opt/singularity-veins/run-with-launchd.sh
+
+    # prerequisites for Veins
+    apt-get -y install git python python3
+
+    # prerequisites for OMNeT++
+    apt-get -y install curl clang bison flex
+
+    # prerequisites for SUMO
+    apt-get -y install cmake libxerces-c-dev libgdal-dev libproj-dev
+
+    cd /opt
+    git clone --depth 1 --branch veins-5.0 https://github.com/sommer/veins veins-5.0
+    ln -s veins-5.0 veins
+    cd veins
+    rm -fr .git
+
+    cd /opt
+    curl --location https://github.com/omnetpp/omnetpp/releases/download/omnetpp-5.6/omnetpp-5.6-src-core.tgz | tar -xzv
+    ln -s omnetpp-5.6 omnetpp
+    export PATH=$PATH:/opt/omnetpp/bin
+    cd omnetpp
+    ./configure WITH_QTENV=no WITH_OSG=no WITH_OSGEARTH=no
+    make -j8 base MODE=debug
+    make -j8 base MODE=release
+    rm -fr doc out test samples misc config.log config.status
+
+    cd /opt
+    git clone --depth 1 --branch v1_4_0 https://github.com/eclipse/sumo sumo-1.4.0
+    ln -s sumo-1.4.0 sumo
+    export PATH=$PATH:/opt/sumo/bin
+    cd sumo
+    cd build
+    cmake ..
+    make -j8
+    cd ..
+    rm -fr .git docs build tests
+
+    apt-get -y autoremove
+    apt-get -y clean
+    apt-get -y autoclean
+
+%environment
+    export LC_ALL=C
+
+%runscript
+
+    #
+    # singularity-veins -- Singularity container for quickly building and running Veins simulations anywhere
+    # Copyright (C) 2020 Christoph Sommer <sommer@cms-labs.org>
+    #
+    # Documentation for these modules is at http://veins.car2x.org/
+    #
+    # SPDX-License-Identifier: GPL-2.0-or-later
+    #
+    # This program is free software; you can redistribute it and/or modify
+    # it under the terms of the GNU General Public License as published by
+    # the Free Software Foundation; either version 2 of the License, or
+    # (at your option) any later version.
+    #
+    # This program is distributed in the hope that it will be useful,
+    # but WITHOUT ANY WARRANTY; without even the implied warranty of
+    # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    # GNU General Public License for more details.
+    #
+    # You should have received a copy of the GNU General Public License
+    # along with this program; if not, write to the Free Software
+    # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+    #
+
+    set -e
+
+    WITH_LAUNCHD=0
+    GETOPT_RESULT=$(getopt --name "singularity-veins runscript" --options hc:l --longoptions help,chdir:,launchd -- "$@")
+    eval set -- "$GETOPT_RESULT"
+    while true; do
+        case "$1" in
+        -h | --help)
+            echo "singularity-veins runscript: For more information, run this container with the 'run-help' option."
+            exit 0
+            ;;
+        -c | --chdir)
+            shift
+            cd "$1"
+            ;;
+        -l | --launchd)
+            WITH_LAUNCHD=1
+            ;;
+        --)
+            shift
+            break
+            ;;
+        esac
+        shift
+    done
+
+    # Make sure that we should actually run something
+    test "$#" -ge 1 || (echo "singularity-veins runscript: No command line to execute. For more information, run this container with the 'run-help' option."; exit 1)
+
+    # set up build/run environment
+    export PATH="$PATH:/opt/omnetpp/bin"
+    export PATH="$PATH:/opt/sumo/bin"
+
+    case "$WITH_LAUNCHD" in
+    0)
+        exec "$@"
+        ;;
+    1)
+        exec /opt/singularity-veins/run-with-launchd.sh "$@"
+        ;;
+    esac
+

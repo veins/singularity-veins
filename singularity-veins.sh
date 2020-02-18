@@ -23,4 +23,6 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 
-singularity run -H work:/work -C --net --network none singularity-veins.sif --launchd --chdir "$@"
+SCRIPTDIR=$(dirname "$0")
+
+singularity run -H .:/work -C --net --network none "${SCRIPTDIR}/singularity-veins.sif" --launchd --chdir "$@"

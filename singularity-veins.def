@@ -32,32 +32,16 @@ MirrorURL:  http://httpredir.debian.org/debian
 
 %labels
     Author sommer@cms-labs.org
-    Version v0.0.3
+    Version v0.0.4
 
 %help
-    This container includes:
-    - Debian Buster;
-    - Veins 5.0 (for sumo-launchd.py);
-    - OMNeT++ 5.6; and
-    - SUMO 1.4.0.
+    Singularity container for quickly building and running Veins simulations anywhere.
+    Tested with Singularity 3.5.2.
 
-    It was tested with Singularity 3.5.2.
-
-    Its runscript will simply run the given command;
-    - optionally in parallel to sumo-launchd.py (runscript --launchd option);
-    - optionally after changing to a given directory (runscript --chdir option).
-
-    You might want to turn on "contain all" (singularity -C option) to isolate programs run in this container from the host system (and vice versa).
-    You might want to mount a home directory (singularity -H option) to make simulations to be built/run available in the container.
-
-    For example, to compile and run the Veins 5.0 tutorial simulation in work/src/veins/examples/veins, you would run the following:
-    mkdir -p work/src
-    cd work/src
-    git clone --branch veins-5.0 https://github.com/sommer/veins veins
-    sudo singularity run -H work:/work -C singularity-veins.sif --chdir src/veins -- ./configure
-    sudo singularity run -H work:/work -C singularity-veins.sif --chdir src/veins -- make
-    sudo singularity run -H work:/work -C singularity-veins.sif --chdir src/veins/examples/veins --launchd -- ./run -u Cmdenv
-    head work/src/veins/examples/veins/results/General-\#0.sca
+    Run this container with its `--help` option for details:
+    ```
+    singularity run singularity-veins.sif --help
+    ```
 
 %setup
     # create stub hosts file contents (necessary for resolving "localhost" if network isolation is turned on)
@@ -66,7 +50,46 @@ MirrorURL:  http://httpredir.debian.org/debian
 %post
     set -e
 
+    # Use default versions if environment variables (SINGULARITYENV_VEINS_VERSION etc.) are left unset
+    : ${VEINS_VERSION=5.0}
+    : ${OPP_VERSION=5.6}
+    : ${SUMO_VERSION=1.4.0}
+    
+    export VEINS_VERSION
+    export OPP_VERSION
+    export SUMO_VERSION
+
+    export SUMO_TAG=v$(echo "$SUMO_VERSION" | tr . _)
+
     apt-get -y update
+
+    # version info
+    mkdir -p /opt/singularity-veins
+    echo "singularity-veins-0.0.4" > /opt/singularity-veins/version.txt
+
+    # help text
+    mkdir -p /opt/singularity-veins
+    echo "This container includes:" >> /opt/singularity-veins/help.txt
+    echo "- Debian Buster;" >> /opt/singularity-veins/help.txt
+    echo "- Veins ${VEINS_VERSION} (for sumo-launchd.py);" >> /opt/singularity-veins/help.txt
+    echo "- OMNeT++ ${OPP_VERSION}; and" >> /opt/singularity-veins/help.txt
+    echo "- SUMO ${SUMO_VERSION}." >> /opt/singularity-veins/help.txt
+    echo "" >> /opt/singularity-veins/help.txt
+    echo "Its runscript will simply run the given command;" >> /opt/singularity-veins/help.txt
+    echo "- optionally in parallel to sumo-launchd.py (runscript --launchd option);" >> /opt/singularity-veins/help.txt
+    echo "- optionally after changing to a given directory (runscript --chdir option)." >> /opt/singularity-veins/help.txt
+    echo "" >> /opt/singularity-veins/help.txt
+    echo "You might want to turn on "contain all" (singularity -C option) to isolate programs run in this container from the host system (and vice versa)." >> /opt/singularity-veins/help.txt
+    echo "You might want to mount a home directory (singularity -H option) to make simulations to be built/run available in the container." >> /opt/singularity-veins/help.txt
+    echo "" >> /opt/singularity-veins/help.txt
+    echo "For example, to compile and run the Veins ${VEINS_VERSION} tutorial simulation in work/src/veins/examples/veins, you would run the following:" >> /opt/singularity-veins/help.txt
+    echo "mkdir -p work/src" >> /opt/singularity-veins/help.txt
+    echo "cd work/src" >> /opt/singularity-veins/help.txt
+    echo "git clone --branch veins-${VEINS_VERSION} https://github.com/sommer/veins veins" >> /opt/singularity-veins/help.txt
+    echo "singularity run -H work:/work -C singularity-veins.sif --chdir src/veins -- ./configure" >> /opt/singularity-veins/help.txt
+    echo "singularity run -H work:/work -C singularity-veins.sif --chdir src/veins -- make" >> /opt/singularity-veins/help.txt
+    echo "singularity run -H work:/work -C singularity-veins.sif --chdir src/veins/examples/veins --launchd -- ./run -u Cmdenv" >> /opt/singularity-veins/help.txt
+    echo "head work/src/veins/examples/veins/results/General-\#0.sca" >> /opt/singularity-veins/help.txt
 
     # script for singularity-veins
     mkdir -p /opt/singularity-veins
@@ -87,14 +110,14 @@ MirrorURL:  http://httpredir.debian.org/debian
     apt-get -y install cmake libxerces-c-dev libgdal-dev libproj-dev
 
     cd /opt
-    git clone --depth 1 --branch veins-5.0 https://github.com/sommer/veins veins-5.0
-    ln -s veins-5.0 veins
+    git clone --depth 1 --branch veins-${VEINS_VERSION} https://github.com/sommer/veins veins-${VEINS_VERSION}
+    ln -s veins-${VEINS_VERSION} veins
     cd veins
     rm -fr .git
 
     cd /opt
-    curl --location https://github.com/omnetpp/omnetpp/releases/download/omnetpp-5.6/omnetpp-5.6-src-core.tgz | tar -xzv
-    ln -s omnetpp-5.6 omnetpp
+    curl --location https://github.com/omnetpp/omnetpp/releases/download/omnetpp-${OPP_VERSION}/omnetpp-${OPP_VERSION}-src-core.tgz | tar -xzv
+    ln -s omnetpp-${OPP_VERSION} omnetpp
     export PATH=$PATH:/opt/omnetpp/bin
     cd omnetpp
     ./configure WITH_QTENV=no WITH_OSG=no WITH_OSGEARTH=no
@@ -103,14 +126,34 @@ MirrorURL:  http://httpredir.debian.org/debian
     rm -fr doc out test samples misc config.log config.status
 
     cd /opt
-    git clone --depth 1 --branch v1_4_0 https://github.com/eclipse/sumo sumo-1.4.0
-    ln -s sumo-1.4.0 sumo
+    git clone --depth 1 --branch "${SUMO_TAG}" https://github.com/eclipse/sumo sumo-${SUMO_VERSION}
+    ln -s sumo-${SUMO_VERSION} sumo
     export PATH=$PATH:/opt/sumo/bin
     cd sumo
-    cd build
-    cmake ..
-    make -j8
-    cd ..
+
+    case "$SUMO_VERSION" in
+    0.32.0)
+        # SUMO 0.32.0 needs a patch to compile
+        curl --location https://github.com/eclipse/sumo/files/2159974/patch-sumo-0.32.0-ComparatorIdLess.txt | patch -p1
+        ;;
+    1.0.0 | 1.0.1 | 1.2.0)
+        echo "Error: this version of SUMO will not compile without GUI support, which this .def file does not install."
+    esac
+
+    case "$SUMO_VERSION" in
+    0.32.0)
+        make -f Makefile.cvs
+        ./configure
+        make -j8
+        ;;
+    *)
+        cd build
+        cmake ..
+        make -j8
+        cd ..
+        ;;
+    esac
+
     rm -fr .git docs build tests
 
     apt-get -y autoremove
@@ -148,12 +191,16 @@ MirrorURL:  http://httpredir.debian.org/debian
     set -e
 
     WITH_LAUNCHD=0
-    GETOPT_RESULT=$(getopt --name "singularity-veins runscript" --options hc:l --longoptions help,chdir:,launchd -- "$@")
+    GETOPT_RESULT=$(getopt --name "singularity-veins runscript" --options Vhc:l --longoptions version,help,chdir:,launchd -- "$@")
     eval set -- "$GETOPT_RESULT"
     while true; do
         case "$1" in
+        -V | --version)
+            cat /opt/singularity-veins/version.txt
+            exit 0
+            ;;
         -h | --help)
-            echo "singularity-veins runscript: For more information, run this container with the 'run-help' option."
+            cat /opt/singularity-veins/help.txt
             exit 0
             ;;
         -c | --chdir)
@@ -172,7 +219,7 @@ MirrorURL:  http://httpredir.debian.org/debian
     done
 
     # Make sure that we should actually run something
-    test "$#" -ge 1 || (echo "singularity-veins runscript: No command line to execute. For more information, run this container with the 'run-help' option."; exit 1)
+    test "$#" -ge 1 || (echo "singularity-veins runscript: No command line to execute. For more information, run this container with its '--help' option."; exit 1)
 
     # set up build/run environment
     export PATH="$PATH:/opt/omnetpp/bin"

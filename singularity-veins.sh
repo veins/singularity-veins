@@ -24,5 +24,6 @@
 #
 
 SCRIPTDIR=$(dirname "$0")
+SCRIPTSTEM=$(basename -s .sh "$0")
 
-singularity run -H .:/work -C --net --network none "${SCRIPTDIR}/singularity-veins.sif" --launchd --chdir "$@"
+singularity run -H .:/work -C --net --network none "${SCRIPTDIR}/${SCRIPTSTEM}.sif" --launchd --chdir "$@"

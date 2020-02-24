@@ -116,10 +116,32 @@ MirrorURL:  http://httpredir.debian.org/debian
     rm -fr .git
 
     cd /opt
-    curl --location https://github.com/omnetpp/omnetpp/releases/download/omnetpp-${OPP_VERSION}/omnetpp-${OPP_VERSION}-src-core.tgz | tar -xzv
+    case "$OPP_VERSION" in
+    5.0)
+        curl --location https://gateway.ipfs.io/ipns/ipfs.omnetpp.org/release/${OPP_VERSION}/omnetpp-${OPP_VERSION}-src.tgz | tar -xzv
+        ;;
+    5.1 | 5.1.1 | 5.2 | 5.2.1 | 5.3)
+        curl --location https://gateway.ipfs.io/ipns/ipfs.omnetpp.org/release/${OPP_VERSION}/omnetpp-${OPP_VERSION}-src-core.tgz | tar -xzv
+        ;;
+    5.4 | 5.5)
+        echo "Error: No mirror configured for this version of OMNeT++"
+        ;;
+    *)
+        curl --location https://github.com/omnetpp/omnetpp/releases/download/omnetpp-${OPP_VERSION}/omnetpp-${OPP_VERSION}-src-core.tgz | tar -xzv
+    esac
+
     ln -s omnetpp-${OPP_VERSION} omnetpp
     export PATH=$PATH:/opt/omnetpp/bin
     cd omnetpp
+
+    case "$OPP_VERSION" in
+    5.0 | 5.1 | 5.1.1 | 5.2 | 5.2.1)
+        # patch configure.user since command line override is not available
+        perl -p -i -e s/WITH_TKENV=yes/WITH_TKENV=no/ configure.user
+        perl -p -i -e s/WITH_QTENV=yes/WITH_QTENV=no/ configure.user
+        ;;
+    esac
+
     ./configure WITH_QTENV=no WITH_OSG=no WITH_OSGEARTH=no
     make -j8 base MODE=debug
     make -j8 base MODE=release

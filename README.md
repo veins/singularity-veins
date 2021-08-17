@@ -43,7 +43,7 @@ cd work/src
 git clone --branch veins-5.0 https://github.com/sommer/veins veins
 cd ../../
 sudo singularity run -H work:/work -C singularity-veins.sif --chdir src/veins -- ./configure
-sudo singularity run -H work:/work -C singularity-veins.sif --chdir src/veins -- make
+sudo singularity run -H work:/work -C singularity-veins.sif --chdir src/veins -- make -j$(nproc)
 sudo singularity run -H work:/work -C --net --network none singularity-veins.sif --chdir src/veins/examples/veins --launchd -- ./run -u Cmdenv
 head work/src/veins/examples/veins/results/General-\#0.sca
 ```

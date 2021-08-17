@@ -41,6 +41,7 @@ singularity run-help singularity-veins.sif
 mkdir -p work/src
 cd work/src
 git clone --branch veins-5.0 https://github.com/sommer/veins veins
+cd ../../
 sudo singularity run -H work:/work -C singularity-veins.sif --chdir src/veins -- ./configure
 sudo singularity run -H work:/work -C singularity-veins.sif --chdir src/veins -- make
 sudo singularity run -H work:/work -C singularity-veins.sif --chdir src/veins/examples/veins --launchd -- ./run -u Cmdenv

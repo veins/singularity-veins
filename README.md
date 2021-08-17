@@ -47,6 +47,18 @@ sudo singularity run -H work:/work -C --net --network none singularity-veins.sif
 head work/src/veins/examples/veins/results/General-\#0.sca
 ```
 
+Alternatively the following commands can be used:
+```
+mkdir -p work/src
+cd work/src
+git clone --branch veins-5.0 https://github.com/sommer/veins veins
+cd ../..
+sudo ./singularity-veins.sh src/veins/ -- ./configure
+sudo ./singularity-veins.sh src/veins/ -- make -j$(nproc)
+sudo ./singularity-veins.sh src/veins/examples/veins -- ./run -u Cmdenv
+head work/src/veins/examples/veins/results/General-\#0.sca
+```
+
 
 ## License ##
 
